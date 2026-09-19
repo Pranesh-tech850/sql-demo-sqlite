@@ -17,7 +17,7 @@ function Students() {
   // =========================================
   // STUDENTS
   // =========================================
-
+const API_URL = import.meta.env.VITE_API_URL;
   const [students, setStudents] = useState([]);
 
   // Search email
@@ -59,7 +59,7 @@ function Students() {
       setError("");
 
       const response = await fetch(
-        "http://localhost:5000/students"
+        `${API_URL}/students`
       );
 
       if (!response.ok) {
@@ -108,7 +108,7 @@ function Students() {
       setError("");
 
       const response = await fetch(
-        `http://localhost:5000/students/search?email=${encodeURIComponent(
+        `${API_URL}/students/search?email=${encodeURIComponent(
           email
         )}`
       );
@@ -206,7 +206,7 @@ function Students() {
       setError("");
 
       const response = await fetch(
-        `http://localhost:5000/students/${editStudent.id}`,
+        `${API_URL}/students/${editStudent.id}`,
         {
           method: "PUT",
 
@@ -283,7 +283,7 @@ function Students() {
 
     try {
         const response = await fetch(
-            `http://localhost:5000/students/${id}`,
+            `${API_URL}/students/${id}`,
             {
                 method: "DELETE"
             }

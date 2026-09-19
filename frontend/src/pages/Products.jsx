@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import {
   Package,
@@ -19,6 +20,8 @@ function Products() {
   // =========================================
   // PRODUCTS
   // =========================================
+
+  const API_URL = import.meta.env.VITE_API_URL;
 
   const [products, setProducts] = useState([]);
 
@@ -59,7 +62,7 @@ function Products() {
       setError("");
 
       const response = await fetch(
-        "http://localhost:5000/products"
+        `${API_URL}/products`
       );
 
       if (!response.ok) {
@@ -107,7 +110,7 @@ function Products() {
       setError("");
 
       const response = await fetch(
-        `http://localhost:5000/products/search?name=${encodeURIComponent(
+        `${API_URL}/products/search?name=${encodeURIComponent(
           productName
         )}`
       );
@@ -203,7 +206,7 @@ function Products() {
       setError("");
 
       const response = await fetch(
-        `http://localhost:5000/products/${editProduct.product_id}`,
+        `${API_URL}/products/${editProduct.product_id}`,
         {
           method: "PUT",
 
@@ -827,3 +830,6 @@ function Products() {
 }
 
 export default Products;
+
+
+

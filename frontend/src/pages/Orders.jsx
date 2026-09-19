@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import {
   ShoppingCart,
@@ -17,6 +18,14 @@ import { Link } from "react-router-dom";
 import "./Orders.css";
 
 function Orders() {
+
+  // ==========================================
+  // API URL
+  // ==========================================
+
+  const API_URL = import.meta.env.VITE_API_URL;
+
+
   const [orders, setOrders] = useState([]);
 
   const [search, setSearch] = useState("");
@@ -24,10 +33,12 @@ function Orders() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+
   // Pagination
   const [page, setPage] = useState(1);
   const [limit] = useState(50);
   const [totalOrders, setTotalOrders] = useState(0);
+
 
   // Edit modal
   const [showEditModal, setShowEditModal] = useState(false);
@@ -42,55 +53,77 @@ function Orders() {
 
   const [updateLoading, setUpdateLoading] = useState(false);
 
+
   // ==========================================
   // FETCH ORDERS
   // ==========================================
 
-const fetchOrders = async () => {
+  const fetchOrders = async () => {
+
     try {
-        setLoading(true);
-        setError("");
 
-        const response = await fetch("http://localhost:5000/orders");
+      setLoading(true);
+      setError("");
 
-        const data = await response.json();
+      const response = await fetch(
+        `${API_URL}/orders`
+      );
 
-        if (!response.ok) {
-            throw new Error(data.error || "Failed to fetch orders");
-        }
+      const data = await response.json();
 
-        console.log("Orders received:", data);
+      if (!response.ok) {
 
-        setOrders(data);
+        throw new Error(
+          data.error || "Failed to fetch orders"
+        );
+
+      }
+
+      console.log("Orders received:", data);
+
+      setOrders(data);
 
     } catch (err) {
-        console.error("Fetch orders error:", err);
 
-        setError(err.message);
-        setOrders([]);
+      console.error(
+        "Fetch orders error:",
+        err
+      );
+
+      setError(err.message);
+      setOrders([]);
 
     } finally {
-        setLoading(false);
+
+      setLoading(false);
+
     }
-};
+  };
+
+
   // ==========================================
   // SEARCH ORDER
   // ==========================================
 
   const searchOrder = async () => {
+
     const orderId = search.trim();
 
     if (!orderId) {
+
       setError("Please enter an order ID");
+
       return;
+
     }
 
     try {
+
       setLoading(true);
       setError("");
 
       const response = await fetch(
-        `http://localhost:5000/orders/search?order_id=${encodeURIComponent(
+        `${API_URL}/orders/search?order_id=${encodeURIComponent(
           orderId
         )}`
       );
@@ -98,179 +131,295 @@ const fetchOrders = async () => {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Order not found");
+
+        throw new Error(
+          data.error || "Order not found"
+        );
+
       }
 
       setOrders([data]);
+
       setTotalOrders(1);
       setPage(1);
+
     } catch (err) {
+
       console.error(err);
 
       setOrders([]);
       setError(err.message);
+
     } finally {
+
       setLoading(false);
+
     }
   };
+
 
   // ==========================================
   // CLEAR SEARCH
   // ==========================================
 
   const clearSearch = () => {
+
     setSearch("");
+
     setOrders([]);
+
     setError("");
+
     setPage(1);
+
     setTotalOrders(0);
+
   };
+
 
   // ==========================================
   // EDIT
   // ==========================================
 
   const handleEdit = (order) => {
+
     setEditOrder({
+
       order_id: order.order_id,
+
       user_id: order.user_id,
+
       product_id: order.product_id,
+
       quantity: order.quantity,
+
       order_date: order.order_date,
+
     });
 
     setShowEditModal(true);
+
   };
+
 
   // ==========================================
   // EDIT INPUT CHANGE
   // ==========================================
 
   const handleEditChange = (e) => {
-    const { name, value } = e.target;
+
+    const {
+      name,
+      value
+    } = e.target;
 
     setEditOrder((prev) => ({
+
       ...prev,
+
       [name]: value,
+
     }));
+
   };
+
 
   // ==========================================
   // UPDATE ORDER
   // ==========================================
 
   const handleUpdate = async (e) => {
+
     e.preventDefault();
 
     try {
+
       setUpdateLoading(true);
+
       setError("");
 
       const response = await fetch(
-        `http://localhost:5000/orders/${editOrder.order_id}`,
+        `${API_URL}/orders/${editOrder.order_id}`,
         {
+
           method: "PUT",
 
           headers: {
+
             "Content-Type": "application/json",
+
           },
 
           body: JSON.stringify({
-            user_id: Number(editOrder.user_id),
-            product_id: Number(editOrder.product_id),
-            quantity: Number(editOrder.quantity),
-            order_date: editOrder.order_date,
+
+            user_id: Number(
+              editOrder.user_id
+            ),
+
+            product_id: Number(
+              editOrder.product_id
+            ),
+
+            quantity: Number(
+              editOrder.quantity
+            ),
+
+            order_date:
+              editOrder.order_date,
+
           }),
+
         }
       );
 
       const data = await response.json();
 
       if (!response.ok) {
+
         throw new Error(
-          data.error || "Failed to update order"
+          data.error ||
+          "Failed to update order"
         );
+
       }
 
+
       // Update only the edited row
+
       setOrders((prevOrders) =>
+
         prevOrders.map((order) =>
-          order.order_id === editOrder.order_id
+
+          order.order_id ===
+          editOrder.order_id
+
             ? data.order
+
             : order
+
         )
+
       );
 
       setShowEditModal(false);
+
     } catch (err) {
+
       console.error(err);
 
       setError(err.message);
+
     } finally {
+
       setUpdateLoading(false);
+
     }
   };
+
 
   // ==========================================
   // DELETE
   // ==========================================
 
-const handleDelete = async (id) => {
-    const confirmDelete = window.confirm(
+  const handleDelete = async (id) => {
+
+    const confirmDelete =
+      window.confirm(
         `Are you sure you want to delete order #${id}?`
-    );
+      );
 
     if (!confirmDelete) {
-        return;
+
+      return;
+
     }
 
     try {
-        const response = await fetch(
-            `http://localhost:5000/orders/${id}`,
-            {
-                method: "DELETE"
-            }
-        );
 
-        const data = await response.json();
-
-        if (!response.ok) {
-            throw new Error(data.error || "Failed to delete order");
+      const response = await fetch(
+        `${API_URL}/orders/${id}`,
+        {
+          method: "DELETE",
         }
+      );
 
-        alert(data.message);
+      const data =
+        await response.json();
 
-        // Remove deleted order from the current React state
-        setOrders((prevOrders) =>
-            prevOrders.filter((order) => order.order_id !== id)
+      if (!response.ok) {
+
+        throw new Error(
+          data.error ||
+          "Failed to delete order"
         );
+
+      }
+
+      alert(data.message);
+
+
+      // Remove deleted order
+      // from current React state
+
+      setOrders((prevOrders) =>
+
+        prevOrders.filter(
+          (order) =>
+            order.order_id !== id
+        )
+
+      );
 
     } catch (err) {
-        console.error("Delete error:", err);
-        alert(err.message);
+
+      console.error(
+        "Delete error:",
+        err
+      );
+
+      alert(err.message);
+
     }
-};
+
+  };
+
 
   // ==========================================
   // PAGINATION
   // ==========================================
 
-  const totalPages = Math.ceil(totalOrders / limit);
+  const totalPages =
+    Math.ceil(
+      totalOrders / limit
+    );
+
 
   const handlePrevious = () => {
+
     if (page > 1) {
+
       fetchOrders(page - 1);
+
     }
+
   };
+
 
   const handleNext = () => {
+
     if (page < totalPages) {
+
       fetchOrders(page + 1);
+
     }
+
   };
 
+
   return (
+
     <div className="students-page">
+
 
       {/* ==========================================
           HEADER
@@ -280,26 +429,47 @@ const handleDelete = async (id) => {
 
         <div className="students-title">
 
-          <Link to="/" className="back-button">
+          <Link
+            to="/"
+            className="back-button"
+          >
+
             <ArrowLeft size={19} />
+
           </Link>
 
+
           <div className="title-icon">
+
             <ShoppingCart size={27} />
+
           </div>
 
+
           <div>
+
             <p className="page-label">
+
               DATABASE TABLE
+
             </p>
 
-            <h1>Orders</h1>
+            <h1>
+
+              Orders
+
+            </h1>
+
           </div>
 
         </div>
 
+
         <div className="record-count">
-          {totalOrders.toLocaleString()} Records
+
+          {totalOrders.toLocaleString()}
+          {" "}Records
+
         </div>
 
       </header>
@@ -311,6 +481,7 @@ const handleDelete = async (id) => {
 
       <section className="students-controls">
 
+
         <button
           className="fetch-button"
           onClick={fetchOrders}
@@ -319,7 +490,11 @@ const handleDelete = async (id) => {
 
           <RefreshCw
             size={18}
-            className={loading ? "spinning" : ""}
+            className={
+              loading
+                ? "spinning"
+                : ""
+            }
           />
 
           {loading
@@ -331,21 +506,27 @@ const handleDelete = async (id) => {
 
         <div className="search-area">
 
+
           <div className="search-box">
 
             <Hash size={18} />
+
 
             <input
               type="number"
               placeholder="Enter order ID..."
               value={search}
               onChange={(e) =>
-                setSearch(e.target.value)
+                setSearch(
+                  e.target.value
+                )
               }
               onKeyDown={(e) => {
 
                 if (e.key === "Enter") {
+
                   searchOrder();
+
                 }
 
               }}
@@ -393,9 +574,13 @@ const handleDelete = async (id) => {
       ========================================== */}
 
       {error && (
+
         <div className="error-message">
+
           {error}
+
         </div>
+
       )}
 
 
@@ -404,6 +589,7 @@ const handleDelete = async (id) => {
       ========================================== */}
 
       <section className="students-table-container">
+
 
         {loading ? (
 
@@ -415,7 +601,9 @@ const handleDelete = async (id) => {
             />
 
             <p>
+
               Loading orders...
+
             </p>
 
           </div>
@@ -427,11 +615,16 @@ const handleDelete = async (id) => {
             <ShoppingCart size={45} />
 
             <h3>
+
               No orders loaded
+
             </h3>
 
             <p>
-              Click "Fetch Orders" to load orders from SQLite.
+
+              Click "Fetch Orders" to load
+              orders from SQLite.
+
             </p>
 
           </div>
@@ -446,17 +639,29 @@ const handleDelete = async (id) => {
 
                 <tr>
 
-                  <th>Order ID</th>
+                  <th>
+                    Order ID
+                  </th>
 
-                  <th>User ID</th>
+                  <th>
+                    User ID
+                  </th>
 
-                  <th>Product ID</th>
+                  <th>
+                    Product ID
+                  </th>
 
-                  <th>Quantity</th>
+                  <th>
+                    Quantity
+                  </th>
 
-                  <th>Order Date</th>
+                  <th>
+                    Order Date
+                  </th>
 
-                  <th>Actions</th>
+                  <th>
+                    Actions
+                  </th>
 
                 </tr>
 
@@ -465,14 +670,23 @@ const handleDelete = async (id) => {
 
               <tbody>
 
-                {orders.map((order) => (
+                {orders.map(
+                  (order) => (
 
-                  <tr key={order.order_id}>
+                  <tr
+                    key={
+                      order.order_id
+                    }
+                  >
+
 
                     <td>
 
                       <span className="id-badge">
-                        #{order.order_id}
+
+                        #
+                        {order.order_id}
+
                       </span>
 
                     </td>
@@ -481,8 +695,11 @@ const handleDelete = async (id) => {
                     <td>
 
                       <span className="order-user-badge">
+
                         <User size={14} />
+
                         {order.user_id}
+
                       </span>
 
                     </td>
@@ -491,8 +708,11 @@ const handleDelete = async (id) => {
                     <td>
 
                       <span className="order-product-badge">
+
                         <Package size={14} />
+
                         {order.product_id}
+
                       </span>
 
                     </td>
@@ -518,11 +738,14 @@ const handleDelete = async (id) => {
 
                       <div className="action-buttons">
 
+
                         <button
                           className="edit-button"
                           title="Edit order"
                           onClick={() =>
-                            handleEdit(order)
+                            handleEdit(
+                              order
+                            )
                           }
                         >
 
@@ -568,23 +791,36 @@ const handleDelete = async (id) => {
           PAGINATION
       ========================================== */}
 
-      {orders.length > 0 && totalPages > 1 && (
+      {orders.length > 0 &&
+        totalPages > 1 && (
 
         <div className="orders-pagination">
 
           <button
             className="pagination-button"
             onClick={handlePrevious}
-            disabled={page === 1 || loading}
+            disabled={
+              page === 1 ||
+              loading
+            }
           >
+
             ← Previous
+
           </button>
 
 
           <div className="pagination-info">
 
-            Page <strong>{page}</strong> of{" "}
-            <strong>{totalPages}</strong>
+            Page{" "}
+            <strong>
+              {page}
+            </strong>
+            {" "}of{" "}
+
+            <strong>
+              {totalPages}
+            </strong>
 
           </div>
 
@@ -597,7 +833,9 @@ const handleDelete = async (id) => {
               loading
             }
           >
+
             Next →
+
           </button>
 
         </div>
@@ -615,16 +853,21 @@ const handleDelete = async (id) => {
 
           <div className="edit-modal">
 
+
             <div className="modal-header">
 
               <div>
 
                 <p className="modal-label">
+
                   ORDER RECORD
+
                 </p>
 
                 <h2>
+
                   Edit Order
+
                 </h2>
 
               </div>
@@ -633,7 +876,9 @@ const handleDelete = async (id) => {
               <button
                 className="close-modal"
                 onClick={() =>
-                  setShowEditModal(false)
+                  setShowEditModal(
+                    false
+                  )
                 }
                 type="button"
               >
@@ -645,21 +890,30 @@ const handleDelete = async (id) => {
             </div>
 
 
-            <form onSubmit={handleUpdate}>
+            <form
+              onSubmit={handleUpdate}
+            >
+
 
               {/* USER ID */}
 
               <div className="form-group">
 
                 <label>
+
                   User ID
+
                 </label>
 
                 <input
                   type="number"
                   name="user_id"
-                  value={editOrder.user_id}
-                  onChange={handleEditChange}
+                  value={
+                    editOrder.user_id
+                  }
+                  onChange={
+                    handleEditChange
+                  }
                   required
                   min="1"
                 />
@@ -672,14 +926,20 @@ const handleDelete = async (id) => {
               <div className="form-group">
 
                 <label>
+
                   Product ID
+
                 </label>
 
                 <input
                   type="number"
                   name="product_id"
-                  value={editOrder.product_id}
-                  onChange={handleEditChange}
+                  value={
+                    editOrder.product_id
+                  }
+                  onChange={
+                    handleEditChange
+                  }
                   required
                   min="1"
                 />
@@ -692,14 +952,20 @@ const handleDelete = async (id) => {
               <div className="form-group">
 
                 <label>
+
                   Quantity
+
                 </label>
 
                 <input
                   type="number"
                   name="quantity"
-                  value={editOrder.quantity}
-                  onChange={handleEditChange}
+                  value={
+                    editOrder.quantity
+                  }
+                  onChange={
+                    handleEditChange
+                  }
                   required
                   min="1"
                 />
@@ -712,14 +978,20 @@ const handleDelete = async (id) => {
               <div className="form-group">
 
                 <label>
+
                   Order Date
+
                 </label>
 
                 <input
                   type="text"
                   name="order_date"
-                  value={editOrder.order_date}
-                  onChange={handleEditChange}
+                  value={
+                    editOrder.order_date
+                  }
+                  onChange={
+                    handleEditChange
+                  }
                   required
                 />
 
@@ -734,36 +1006,46 @@ const handleDelete = async (id) => {
                   type="button"
                   className="cancel-button"
                   onClick={() =>
-                    setShowEditModal(false)
+                    setShowEditModal(
+                      false
+                    )
                   }
                 >
+
                   Cancel
+
                 </button>
 
 
                 <button
                   type="submit"
                   className="update-button"
-                  disabled={updateLoading}
+                  disabled={
+                    updateLoading
+                  }
                 >
 
                   {updateLoading ? (
 
                     <>
+
                       <RefreshCw
                         size={17}
                         className="spinning"
                       />
 
                       Updating...
+
                     </>
 
                   ) : (
 
                     <>
+
                       <Save size={17} />
 
                       Update Order
+
                     </>
 
                   )}
@@ -781,7 +1063,10 @@ const handleDelete = async (id) => {
       )}
 
     </div>
+
   );
+
 }
 
 export default Orders;
+

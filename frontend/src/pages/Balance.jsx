@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+
+import { useState } from "react";
 import {
     Wallet,
     RefreshCw,
@@ -16,6 +17,13 @@ import "./Balance.css";
 
 function Balance() {
 
+    // =========================================
+    // API URL
+    // =========================================
+
+    const API_URL = import.meta.env.VITE_API_URL;
+
+
     const [balances, setBalances] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
@@ -26,6 +34,11 @@ function Balance() {
     const [productId, setProductId] = useState("");
     const [buyQuantity, setBuyQuantity] = useState(1);
 
+
+    // =========================================
+    // FETCH BALANCES
+    // =========================================
+
     const fetchBalances = async () => {
 
         try {
@@ -34,24 +47,33 @@ function Balance() {
             setError("");
 
             const response = await fetch(
-                "http://localhost:5000/balance"
+                `${API_URL}/balance`
             );
 
             const data = await response.json();
 
             if (!response.ok) {
+
                 throw new Error(
-                    data.error || "Failed to fetch balances"
+                    data.error ||
+                    "Failed to fetch balances"
                 );
+
             }
 
-            console.log("Balances received:", data);
+            console.log(
+                "Balances received:",
+                data
+            );
 
             setBalances(data);
 
         } catch (err) {
 
-            console.error("Fetch balance error:", err);
+            console.error(
+                "Fetch balance error:",
+                err
+            );
 
             setError(err.message);
             setBalances([]);
@@ -69,7 +91,10 @@ function Balance() {
     // }, []);
 
 
-    // Open Buy popup
+    // =========================================
+    // OPEN BUY POPUP
+    // =========================================
+
     const handleBuy = (user) => {
 
         setSelectedUser(user);
@@ -78,10 +103,14 @@ function Balance() {
         setBuyQuantity(1);
 
         setShowBuyModal(true);
+
     };
 
 
-    // Close Buy popup
+    // =========================================
+    // CLOSE BUY POPUP
+    // =========================================
+
     const closeBuyModal = () => {
 
         setShowBuyModal(false);
@@ -89,24 +118,35 @@ function Balance() {
 
         setProductId("");
         setBuyQuantity(1);
+
     };
 
 
-    // Quantity minus
+    // =========================================
+    // QUANTITY MINUS
+    // =========================================
+
     const decreaseQuantity = () => {
 
         setBuyQuantity((prev) => {
 
             if (prev <= 1) {
+
                 return 1;
+
             }
 
             return prev - 1;
+
         });
+
     };
 
 
-    // Quantity plus
+    // =========================================
+    // QUANTITY PLUS
+    // =========================================
+
     const increaseQuantity = () => {
 
         setBuyQuantity((prev) => {
@@ -115,91 +155,137 @@ function Balance() {
                 selectedUser &&
                 prev >= selectedUser.quantity
             ) {
+
                 return prev;
+
             }
 
             return prev + 1;
+
         });
+
     };
 
 
-    // Buy submit
-   const handlePurchase = async (e) => {
-    e.preventDefault();
+    // =========================================
+    // BUY SUBMIT
+    // =========================================
 
-    if (!productId.trim()) {
-        alert("Please enter Product ID");
-        return;
-    }
+    const handlePurchase = async (e) => {
 
-    if (!buyQuantity || buyQuantity <= 0) {
-        alert("Please enter a valid quantity");
-        return;
-    }
+        e.preventDefault();
 
-    if (
-        selectedUser &&
-        buyQuantity > selectedUser.quantity
-    ) {
-        alert(
-            `Only ${selectedUser.quantity} quantity is available.`
-        );
-        return;
-    }
+        if (!productId.trim()) {
 
-    try {
-        setLoading(true);
-
-        const response = await fetch(
-            "http://localhost:5000/balance/buy",
-            {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    user_id: selectedUser.user_id,
-                    product_id: Number(productId),
-                    quantity: Number(buyQuantity)
-                })
-            }
-        );
-
-        const data = await response.json();
-
-        if (!response.ok) {
-            throw new Error(
-                data.error || "Purchase failed"
+            alert(
+                "Please enter Product ID"
             );
+
+            return;
+
         }
 
-        alert(
-            `Purchase successful! Remaining quantity: ${data.remaining_quantity}`
-        );
+        if (!buyQuantity || buyQuantity <= 0) {
 
-        // Close popup
-        closeBuyModal();
+            alert(
+                "Please enter a valid quantity"
+            );
 
-        // Fetch latest balance from database
-        await fetchBalances();
+            return;
 
-    } catch (err) {
+        }
 
-        console.error(
-            "Purchase error:",
-            err
-        );
+        if (
+            selectedUser &&
+            buyQuantity > selectedUser.quantity
+        ) {
 
-        alert(err.message);
+            alert(
+                `Only ${selectedUser.quantity} quantity is available.`
+            );
 
-    } finally {
-        setLoading(false);
-    }
-};
+            return;
+
+        }
+
+        try {
+
+            setLoading(true);
+
+            const response = await fetch(
+                `${API_URL}/balance/buy`,
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body: JSON.stringify({
+
+                        user_id:
+                            selectedUser.user_id,
+
+                        product_id:
+                            Number(productId),
+
+                        quantity:
+                            Number(buyQuantity)
+
+                    })
+                }
+            );
+
+            const data =
+                await response.json();
+
+            if (!response.ok) {
+
+                throw new Error(
+                    data.error ||
+                    "Purchase failed"
+                );
+
+            }
+
+            alert(
+                `Purchase successful! Remaining quantity: ${data.remaining_quantity}`
+            );
+
+
+            // Close popup
+
+            closeBuyModal();
+
+
+            // Fetch latest balance
+            // from database
+
+            await fetchBalances();
+
+        } catch (err) {
+
+            console.error(
+                "Purchase error:",
+                err
+            );
+
+            alert(err.message);
+
+        } finally {
+
+            setLoading(false);
+
+        }
+
+    };
 
 
     return (
+
         <div className="balance-page">
+
 
             {/* HEADER */}
 
@@ -208,15 +294,29 @@ function Balance() {
                 <div>
 
                     <div className="balance-title">
-                          <Link to="/" className="back-button">
-                                    <ArrowLeft size={19} />
+
+                        <Link
+                            to="/"
+                            className="back-button"
+                        >
+
+                            <ArrowLeft
+                                size={19}
+                            />
+
                         </Link>
+
                         <Wallet size={28} />
-                        <h1>Balance</h1>
+
+                        <h1>
+                            Balance
+                        </h1>
+
                     </div>
 
                     <p>
-                        Manage user quantities and purchases
+                        Manage user quantities
+                        and purchases
                     </p>
 
                 </div>
@@ -227,14 +327,20 @@ function Balance() {
                     onClick={fetchBalances}
                     disabled={loading}
                 >
+
                     <RefreshCw
                         size={18}
-                        className={loading ? "spin" : ""}
+                        className={
+                            loading
+                                ? "spin"
+                                : ""
+                        }
                     />
 
                     {loading
                         ? "Fetching..."
                         : "Fetch Balance"}
+
                 </button>
 
             </div>
@@ -243,9 +349,13 @@ function Balance() {
             {/* ERROR */}
 
             {error && (
+
                 <div className="error-message">
+
                     {error}
+
                 </div>
+
             )}
 
 
@@ -257,7 +367,9 @@ function Balance() {
 
                     <div>
 
-                        <h2>Users</h2>
+                        <h2>
+                            Users
+                        </h2>
 
                         <p>
                             Available user quantities
@@ -266,7 +378,10 @@ function Balance() {
                     </div>
 
                     <span>
-                        {balances.length.toLocaleString()} Records
+
+                        {balances.length.toLocaleString()}
+                        {" "}Records
+
                     </span>
 
                 </div>
@@ -277,6 +392,7 @@ function Balance() {
                 {loading ? (
 
                     <div className="loading">
+
                         <RefreshCw
                             size={24}
                             className="spin"
@@ -285,6 +401,7 @@ function Balance() {
                         <span>
                             Loading quantities...
                         </span>
+
                     </div>
 
                 ) : balances.length === 0 ? (
@@ -298,7 +415,8 @@ function Balance() {
                         </h3>
 
                         <p>
-                            There are no balance records available.
+                            There are no balance
+                            records available.
                         </p>
 
                     </div>
@@ -340,21 +458,31 @@ function Balance() {
 
                             <tbody>
 
-                                {balances.map((user) => (
+                                {balances.map(
+                                    (user) => (
 
                                     <tr
-                                        key={user.balance_id}
+                                        key={
+                                            user.balance_id
+                                        }
                                     >
 
                                         <td>
+
                                             <span className="id-badge">
-                                                #{user.balance_id}
+
+                                                #
+                                                {user.balance_id}
+
                                             </span>
+
                                         </td>
 
 
                                         <td>
+
                                             {user.user_id}
+
                                         </td>
 
 
@@ -363,13 +491,17 @@ function Balance() {
                                             <div className="user-name">
 
                                                 <div className="user-avatar">
+
                                                     {user.user_name
                                                         ?.charAt(0)
                                                         ?.toUpperCase()}
+
                                                 </div>
 
                                                 <span>
+
                                                     {user.user_name}
+
                                                 </span>
 
                                             </div>
@@ -380,9 +512,11 @@ function Balance() {
                                         <td>
 
                                             <span className="quantity-badge">
+
                                                 {Number(
                                                     user.quantity
                                                 ).toLocaleString()}
+
                                             </span>
 
                                         </td>
@@ -393,14 +527,18 @@ function Balance() {
                                             <button
                                                 className="buy-button"
                                                 onClick={() =>
-                                                    handleBuy(user)
+                                                    handleBuy(
+                                                        user
+                                                    )
                                                 }
                                             >
+
                                                 <ShoppingCart
                                                     size={16}
                                                 />
 
                                                 Buy
+
                                             </button>
 
                                         </td>
@@ -422,7 +560,8 @@ function Balance() {
 
             {/* BUY MODAL */}
 
-            {showBuyModal && selectedUser && (
+            {showBuyModal &&
+                selectedUser && (
 
                 <div
                     className="modal-overlay"
@@ -436,12 +575,17 @@ function Balance() {
                         }
                     >
 
+
                         {/* MODAL HEADER */}
 
                         <div className="modal-header">
 
                             <div className="modal-icon">
-                                <ShoppingCart size={24} />
+
+                                <ShoppingCart
+                                    size={24}
+                                />
+
                             </div>
 
                             <div>
@@ -459,9 +603,13 @@ function Balance() {
 
                             <button
                                 className="close-modal"
-                                onClick={closeBuyModal}
+                                onClick={
+                                    closeBuyModal
+                                }
                             >
+
                                 <X size={20} />
+
                             </button>
 
                         </div>
@@ -472,19 +620,30 @@ function Balance() {
                         <div className="selected-user">
 
                             <div className="selected-user-avatar">
+
                                 {selectedUser.user_name
                                     ?.charAt(0)
                                     ?.toUpperCase()}
+
                             </div>
 
                             <div className="selected-user-info">
 
                                 <strong>
-                                    {selectedUser.user_name}
+
+                                    {
+                                        selectedUser.user_name
+                                    }
+
                                 </strong>
 
                                 <span>
-                                    User ID: {selectedUser.user_id}
+
+                                    User ID:{" "}
+                                    {
+                                        selectedUser.user_id
+                                    }
+
                                 </span>
 
                             </div>
@@ -497,9 +656,11 @@ function Balance() {
                                 </span>
 
                                 <strong>
+
                                     {Number(
                                         selectedUser.quantity
                                     ).toLocaleString()}
+
                                 </strong>
 
                             </div>
@@ -510,17 +671,23 @@ function Balance() {
                         {/* FORM */}
 
                         <form
-                            onSubmit={handlePurchase}
+                            onSubmit={
+                                handlePurchase
+                            }
                             className="buy-form"
                         >
+
 
                             {/* PRODUCT ID */}
 
                             <div className="form-group">
 
                                 <label>
+
                                     <Hash size={16} />
+
                                     Product ID
+
                                 </label>
 
                                 <div className="input-wrapper">
@@ -550,8 +717,13 @@ function Balance() {
                             <div className="form-group">
 
                                 <label>
-                                    <ShoppingCart size={16} />
+
+                                    <ShoppingCart
+                                        size={16}
+                                    />
+
                                     Quantity
+
                                 </label>
 
                                 <div className="quantity-control">
@@ -562,10 +734,15 @@ function Balance() {
                                             decreaseQuantity
                                         }
                                         disabled={
-                                            buyQuantity <= 1
+                                            buyQuantity <=
+                                            1
                                         }
                                     >
-                                        <Minus size={16} />
+
+                                        <Minus
+                                            size={16}
+                                        />
+
                                     </button>
 
 
@@ -575,21 +752,26 @@ function Balance() {
                                         max={
                                             selectedUser.quantity
                                         }
-                                        value={buyQuantity}
+                                        value={
+                                            buyQuantity
+                                        }
                                         onChange={(e) => {
 
                                             const value =
                                                 Number(
-                                                    e.target.value
+                                                    e.target
+                                                        .value
                                                 );
 
                                             if (
                                                 value <=
                                                 selectedUser.quantity
                                             ) {
+
                                                 setBuyQuantity(
                                                     value
                                                 );
+
                                             }
 
                                         }}
@@ -606,14 +788,22 @@ function Balance() {
                                             selectedUser.quantity
                                         }
                                     >
-                                        <Plus size={16} />
+
+                                        <Plus
+                                            size={16}
+                                        />
+
                                     </button>
 
                                 </div>
 
                                 <small>
+
                                     Maximum available:{" "}
-                                    {selectedUser.quantity}
+                                    {
+                                        selectedUser.quantity
+                                    }
+
                                 </small>
 
                             </div>
@@ -630,7 +820,9 @@ function Balance() {
                                         closeBuyModal
                                     }
                                 >
+
                                     Cancel
+
                                 </button>
 
 
@@ -638,11 +830,13 @@ function Balance() {
                                     type="submit"
                                     className="confirm-buy-button"
                                 >
+
                                     <ShoppingCart
                                         size={17}
                                     />
 
                                     Buy Now
+
                                 </button>
 
                             </div>
@@ -656,7 +850,12 @@ function Balance() {
             )}
 
         </div>
+
     );
+
 }
 
 export default Balance;
+
+
+
