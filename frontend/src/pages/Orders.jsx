@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import {
   ShoppingCart,
@@ -9,7 +8,7 @@ import {
   ArrowLeft,
   X,
   Save,
-  Hash,
+  Mail,
   User,
   Package,
   CalendarDays,
@@ -83,6 +82,9 @@ function Orders() {
 
       setOrders(data);
 
+      setTotalOrders(data.length);
+      setPage(1);
+
     } catch (err) {
 
       console.error(
@@ -102,61 +104,47 @@ function Orders() {
 
 
   // ==========================================
-  // SEARCH ORDER
+  // SEARCH ORDER BY EMAIL
   // ==========================================
 
-  const searchOrder = async () => {
+ const searchOrder = async () => {
+    const email = search.trim();
 
-    const orderId = search.trim();
-
-    if (!orderId) {
-
-      setError("Please enter an order ID");
-
-      return;
-
+    if (!email) {
+        setError("Please enter an email");
+        return;
     }
 
     try {
+        setLoading(true);
+        setError("");
 
-      setLoading(true);
-      setError("");
-
-      const response = await fetch(
-        `${API_URL}/orders/search?order_id=${encodeURIComponent(
-          orderId
-        )}`
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-
-        throw new Error(
-          data.error || "Order not found"
+        const response = await fetch(
+            `${API_URL}/orders/search?email=${encodeURIComponent(email)}`
         );
 
-      }
+        const data = await response.json();
 
-      setOrders([data]);
+        if (!response.ok) {
+            throw new Error(
+                data.error || "No orders found for this email"
+            );
+        }
 
-      setTotalOrders(1);
-      setPage(1);
+        setOrders(data);
+        setTotalOrders(data.length);
+        setPage(1);
 
     } catch (err) {
-
-      console.error(err);
-
-      setOrders([]);
-      setError(err.message);
+        console.error(err);
+        setOrders([]);
+        setTotalOrders(0);
+        setError(err.message);
 
     } finally {
-
-      setLoading(false);
-
+        setLoading(false);
     }
-  };
-
+};
 
   // ==========================================
   // CLEAR SEARCH
@@ -235,7 +223,6 @@ function Orders() {
     try {
 
       setUpdateLoading(true);
-
       setError("");
 
       const response = await fetch(
@@ -368,6 +355,10 @@ function Orders() {
             order.order_id !== id
         )
 
+      );
+
+      setTotalOrders((prev) =>
+        Math.max(prev - 1, 0)
       );
 
     } catch (err) {
@@ -509,12 +500,12 @@ function Orders() {
 
           <div className="search-box">
 
-            <Hash size={18} />
+            <Mail size={18} />
 
 
             <input
-              type="number"
-              placeholder="Enter order ID..."
+              type="email"
+              placeholder="Enter email..."
               value={search}
               onChange={(e) =>
                 setSearch(
@@ -657,12 +648,11 @@ function Orders() {
 
                   <th>
                     E-mail
-                    </th>
+                  </th>
+
                   <th>
                     Order Date
                   </th>
-
-
 
                   <th>
                     Actions
@@ -729,7 +719,8 @@ function Orders() {
 
                     </td>
 
-                       <td className="order-quantity">
+
+                    <td className="order-quantity">
 
                       {order.email}
 
@@ -1080,4 +1071,3 @@ function Orders() {
 }
 
 export default Orders;
-

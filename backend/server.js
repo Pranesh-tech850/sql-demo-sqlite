@@ -668,39 +668,36 @@ app.delete("/students/:id", (req, res) => {
         }
     );
 });
+
 app.get("/orders/search", (req, res) => {
+    const { email } = req.query;
 
-    const { order_id } = req.query;
-
-    if (!order_id) {
+    if (!email) {
         return res.status(400).json({
-            error: "Order ID is required"
+            error: "Email is required"
         });
     }
 
-    const sql = `
-        SELECT *
-        FROM orders
-        WHERE order_id = ?
-    `;
+    db.all(
+        `SELECT * FROM orders WHERE email = ?`,
+        [email],
+        (err, rows) => {
 
-    db.get(sql, [order_id], (err, order) => {
+            if (err) {
+                return res.status(500).json({
+                    error: err.message
+                });
+            }
 
-        if (err) {
-            return res.status(500).json({
-                error: err.message
-            });
+            if (rows.length === 0) {
+                return res.status(404).json({
+                    error: "No orders found for this email"
+                });
+            }
+
+            res.json(rows);
         }
-
-        if (!order) {
-            return res.status(404).json({
-                error: "Order not found"
-            });
-        }
-
-        res.json(order);
-    });
-
+    );
 });
 
 app.put("/orders/:id", (req, res) => {
