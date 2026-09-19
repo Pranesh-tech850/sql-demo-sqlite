@@ -1,19 +1,20 @@
-
 import { useState } from "react";
+
 import {
     Wallet,
     RefreshCw,
     ShoppingCart,
     X,
     Package,
-    Hash,
     Minus,
     Plus,
     ArrowLeft
 } from "lucide-react";
 
 import { Link } from "react-router-dom";
+
 import "./Balance.css";
+
 
 function Balance() {
 
@@ -24,14 +25,20 @@ function Balance() {
     const API_URL = import.meta.env.VITE_API_URL;
 
 
+    // =========================================
+    // STATES
+    // =========================================
+
     const [balances, setBalances] = useState([]);
+
     const [loading, setLoading] = useState(false);
+
     const [error, setError] = useState("");
 
     const [showBuyModal, setShowBuyModal] = useState(false);
+
     const [selectedUser, setSelectedUser] = useState(null);
 
-    const [productId, setProductId] = useState("");
     const [buyQuantity, setBuyQuantity] = useState(1);
 
 
@@ -44,13 +51,17 @@ function Balance() {
         try {
 
             setLoading(true);
+
             setError("");
+
 
             const response = await fetch(
                 `${API_URL}/balance`
             );
 
+
             const data = await response.json();
+
 
             if (!response.ok) {
 
@@ -61,12 +72,15 @@ function Balance() {
 
             }
 
+
             console.log(
                 "Balances received:",
                 data
             );
 
+
             setBalances(data);
+
 
         } catch (err) {
 
@@ -75,20 +89,19 @@ function Balance() {
                 err
             );
 
+
             setError(err.message);
+
             setBalances([]);
+
 
         } finally {
 
             setLoading(false);
 
         }
+
     };
-
-
-    // useEffect(() => {
-    //     fetchBalances();
-    // }, []);
 
 
     // =========================================
@@ -99,7 +112,6 @@ function Balance() {
 
         setSelectedUser(user);
 
-        setProductId("");
         setBuyQuantity(1);
 
         setShowBuyModal(true);
@@ -114,16 +126,16 @@ function Balance() {
     const closeBuyModal = () => {
 
         setShowBuyModal(false);
+
         setSelectedUser(null);
 
-        setProductId("");
         setBuyQuantity(1);
 
     };
 
 
     // =========================================
-    // QUANTITY MINUS
+    // DECREASE QUANTITY
     // =========================================
 
     const decreaseQuantity = () => {
@@ -144,7 +156,7 @@ function Balance() {
 
 
     // =========================================
-    // QUANTITY PLUS
+    // INCREASE QUANTITY
     // =========================================
 
     const increaseQuantity = () => {
@@ -153,7 +165,7 @@ function Balance() {
 
             if (
                 selectedUser &&
-                prev >= selectedUser.quantity
+                prev >= Number(selectedUser.quantity)
             ) {
 
                 return prev;
@@ -175,15 +187,6 @@ function Balance() {
 
         e.preventDefault();
 
-        if (!productId.trim()) {
-
-            alert(
-                "Please enter Product ID"
-            );
-
-            return;
-
-        }
 
         if (!buyQuantity || buyQuantity <= 0) {
 
@@ -195,9 +198,11 @@ function Balance() {
 
         }
 
+
         if (
             selectedUser &&
-            buyQuantity > selectedUser.quantity
+            Number(buyQuantity) >
+            Number(selectedUser.quantity)
         ) {
 
             alert(
@@ -208,12 +213,19 @@ function Balance() {
 
         }
 
+
         try {
 
             setLoading(true);
 
+
+            // =====================================
+            // BALANCE ID IS TAKEN FROM SELECTED ROW
+            // USER DOES NOT ENTER IT
+            // =====================================
+
             const response = await fetch(
-                `${API_URL}/balance/buy`,
+                `${API_URL}/buy/${selectedUser.balance_id}`,
                 {
                     method: "POST",
 
@@ -224,45 +236,48 @@ function Balance() {
 
                     body: JSON.stringify({
 
-                        user_id:
-                            selectedUser.user_id,
-
-                        product_id:
-                            Number(productId),
-
                         quantity:
                             Number(buyQuantity)
 
                     })
+
                 }
             );
+
 
             const data =
                 await response.json();
 
+
             if (!response.ok) {
 
                 throw new Error(
+                    data.message ||
                     data.error ||
                     "Purchase failed"
                 );
 
             }
 
+
             alert(
-                `Purchase successful! Remaining quantity: ${data.remaining_quantity}`
+                `Purchase successful! Remaining quantity: ${data.remainingQuantity}`
             );
 
 
-            // Close popup
+            // =====================================
+            // CLOSE POPUP
+            // =====================================
 
             closeBuyModal();
 
 
-            // Fetch latest balance
-            // from database
+            // =====================================
+            // FETCH UPDATED BALANCE
+            // =====================================
 
             await fetchBalances();
+
 
         } catch (err) {
 
@@ -271,7 +286,11 @@ function Balance() {
                 err
             );
 
-            alert(err.message);
+
+            alert(
+                err.message
+            );
+
 
         } finally {
 
@@ -282,12 +301,18 @@ function Balance() {
     };
 
 
+    // =========================================
+    // UI
+    // =========================================
+
     return (
 
         <div className="balance-page">
 
 
-            {/* HEADER */}
+            {/* =====================================
+                HEADER
+            ===================================== */}
 
             <div className="balance-header">
 
@@ -306,13 +331,18 @@ function Balance() {
 
                         </Link>
 
-                        <Wallet size={28} />
+
+                        <Wallet
+                            size={28}
+                        />
+
 
                         <h1>
                             Balance
                         </h1>
 
                     </div>
+
 
                     <p>
                         Manage user quantities
@@ -337,6 +367,7 @@ function Balance() {
                         }
                     />
 
+
                     {loading
                         ? "Fetching..."
                         : "Fetch Balance"}
@@ -346,7 +377,9 @@ function Balance() {
             </div>
 
 
-            {/* ERROR */}
+            {/* =====================================
+                ERROR
+            ===================================== */}
 
             {error && (
 
@@ -359,7 +392,9 @@ function Balance() {
             )}
 
 
-            {/* TABLE CARD */}
+            {/* =====================================
+                TABLE CARD
+            ===================================== */}
 
             <div className="balance-card">
 
@@ -377,17 +412,21 @@ function Balance() {
 
                     </div>
 
+
                     <span>
 
                         {balances.length.toLocaleString()}
-                        {" "}Records
+                        {" "}
+                        Records
 
                     </span>
 
                 </div>
 
 
-                {/* LOADING */}
+                {/* =================================
+                    LOADING
+                ================================= */}
 
                 {loading ? (
 
@@ -404,11 +443,14 @@ function Balance() {
 
                     </div>
 
+
                 ) : balances.length === 0 ? (
 
                     <div className="empty">
 
-                        <Package size={40} />
+                        <Package
+                            size={40}
+                        />
 
                         <h3>
                             No records found
@@ -420,6 +462,7 @@ function Balance() {
                         </p>
 
                     </div>
+
 
                 ) : (
 
@@ -461,91 +504,99 @@ function Balance() {
                                 {balances.map(
                                     (user) => (
 
-                                    <tr
-                                        key={
-                                            user.balance_id
-                                        }
-                                    >
+                                        <tr
+                                            key={
+                                                user.balance_id
+                                            }
+                                        >
 
-                                        <td>
+                                            <td>
 
-                                            <span className="id-badge">
+                                                <span className="id-badge">
 
-                                                #
-                                                {user.balance_id}
-
-                                            </span>
-
-                                        </td>
-
-
-                                        <td>
-
-                                            {user.user_id}
-
-                                        </td>
-
-
-                                        <td>
-
-                                            <div className="user-name">
-
-                                                <div className="user-avatar">
-
-                                                    {user.user_name
-                                                        ?.charAt(0)
-                                                        ?.toUpperCase()}
-
-                                                </div>
-
-                                                <span>
-
-                                                    {user.user_name}
+                                                    #
+                                                    {
+                                                        user.balance_id
+                                                    }
 
                                                 </span>
 
-                                            </div>
-
-                                        </td>
+                                            </td>
 
 
-                                        <td>
+                                            <td>
 
-                                            <span className="quantity-badge">
-
-                                                {Number(
-                                                    user.quantity
-                                                ).toLocaleString()}
-
-                                            </span>
-
-                                        </td>
-
-
-                                        <td>
-
-                                            <button
-                                                className="buy-button"
-                                                onClick={() =>
-                                                    handleBuy(
-                                                        user
-                                                    )
+                                                {
+                                                    user.user_id
                                                 }
-                                            >
 
-                                                <ShoppingCart
-                                                    size={16}
-                                                />
+                                            </td>
 
-                                                Buy
 
-                                            </button>
+                                            <td>
 
-                                        </td>
+                                                <div className="user-name">
 
-                                    </tr>
+                                                    <div className="user-avatar">
 
-                                ))}
+                                                        {user.user_name
+                                                            ?.charAt(0)
+                                                            ?.toUpperCase()}
+
+                                                    </div>
+
+
+                                                    <span>
+
+                                                        {
+                                                            user.user_name
+                                                        }
+
+                                                    </span>
+
+                                                </div>
+
+                                            </td>
+
+
+                                            <td>
+
+                                                <span className="quantity-badge">
+
+                                                    {Number(
+                                                        user.quantity
+                                                    ).toLocaleString()}
+
+                                                </span>
+
+                                            </td>
+
+
+                                            <td>
+
+                                                <button
+                                                    className="buy-button"
+                                                    onClick={() =>
+                                                        handleBuy(
+                                                            user
+                                                        )
+                                                    }
+                                                >
+
+                                                    <ShoppingCart
+                                                        size={16}
+                                                    />
+
+                                                    Buy
+
+                                                </button>
+
+                                            </td>
+
+                                        </tr>
+
+                                    )
+                                )}
 
                             </tbody>
 
@@ -558,296 +609,280 @@ function Balance() {
             </div>
 
 
-            {/* BUY MODAL */}
+            {/* =====================================
+                BUY MODAL
+            ===================================== */}
 
             {showBuyModal &&
                 selectedUser && (
 
-                <div
-                    className="modal-overlay"
-                    onClick={closeBuyModal}
-                >
-
                     <div
-                        className="buy-modal"
-                        onClick={(e) =>
-                            e.stopPropagation()
-                        }
+                        className="modal-overlay"
+                        onClick={closeBuyModal}
                     >
 
-
-                        {/* MODAL HEADER */}
-
-                        <div className="modal-header">
-
-                            <div className="modal-icon">
-
-                                <ShoppingCart
-                                    size={24}
-                                />
-
-                            </div>
-
-                            <div>
-
-                                <h2>
-                                    Purchase Product
-                                </h2>
-
-                                <p>
-                                    Enter the product details
-                                </p>
-
-                            </div>
-
-
-                            <button
-                                className="close-modal"
-                                onClick={
-                                    closeBuyModal
-                                }
-                            >
-
-                                <X size={20} />
-
-                            </button>
-
-                        </div>
-
-
-                        {/* USER INFO */}
-
-                        <div className="selected-user">
-
-                            <div className="selected-user-avatar">
-
-                                {selectedUser.user_name
-                                    ?.charAt(0)
-                                    ?.toUpperCase()}
-
-                            </div>
-
-                            <div className="selected-user-info">
-
-                                <strong>
-
-                                    {
-                                        selectedUser.user_name
-                                    }
-
-                                </strong>
-
-                                <span>
-
-                                    User ID:{" "}
-                                    {
-                                        selectedUser.user_id
-                                    }
-
-                                </span>
-
-                            </div>
-
-
-                            <div className="available-quantity">
-
-                                <span>
-                                    Available
-                                </span>
-
-                                <strong>
-
-                                    {Number(
-                                        selectedUser.quantity
-                                    ).toLocaleString()}
-
-                                </strong>
-
-                            </div>
-
-                        </div>
-
-
-                        {/* FORM */}
-
-                        <form
-                            onSubmit={
-                                handlePurchase
+                        <div
+                            className="buy-modal"
+                            onClick={(e) =>
+                                e.stopPropagation()
                             }
-                            className="buy-form"
                         >
 
 
-                            {/* PRODUCT ID */}
+                            {/* MODAL HEADER */}
 
-                            <div className="form-group">
+                            <div className="modal-header">
 
-                                <label>
-
-                                    <Hash size={16} />
-
-                                    Product ID
-
-                                </label>
-
-                                <div className="input-wrapper">
-
-                                    <Package size={18} />
-
-                                    <input
-                                        type="number"
-                                        min="1"
-                                        placeholder="Enter product ID"
-                                        value={productId}
-                                        onChange={(e) =>
-                                            setProductId(
-                                                e.target.value
-                                            )
-                                        }
-                                        autoFocus
-                                    />
-
-                                </div>
-
-                            </div>
-
-
-                            {/* QUANTITY */}
-
-                            <div className="form-group">
-
-                                <label>
+                                <div className="modal-icon">
 
                                     <ShoppingCart
-                                        size={16}
+                                        size={24}
                                     />
-
-                                    Quantity
-
-                                </label>
-
-                                <div className="quantity-control">
-
-                                    <button
-                                        type="button"
-                                        onClick={
-                                            decreaseQuantity
-                                        }
-                                        disabled={
-                                            buyQuantity <=
-                                            1
-                                        }
-                                    >
-
-                                        <Minus
-                                            size={16}
-                                        />
-
-                                    </button>
-
-
-                                    <input
-                                        type="number"
-                                        min="1"
-                                        max={
-                                            selectedUser.quantity
-                                        }
-                                        value={
-                                            buyQuantity
-                                        }
-                                        onChange={(e) => {
-
-                                            const value =
-                                                Number(
-                                                    e.target
-                                                        .value
-                                                );
-
-                                            if (
-                                                value <=
-                                                selectedUser.quantity
-                                            ) {
-
-                                                setBuyQuantity(
-                                                    value
-                                                );
-
-                                            }
-
-                                        }}
-                                    />
-
-
-                                    <button
-                                        type="button"
-                                        onClick={
-                                            increaseQuantity
-                                        }
-                                        disabled={
-                                            buyQuantity >=
-                                            selectedUser.quantity
-                                        }
-                                    >
-
-                                        <Plus
-                                            size={16}
-                                        />
-
-                                    </button>
 
                                 </div>
 
-                                <small>
 
-                                    Maximum available:{" "}
-                                    {
-                                        selectedUser.quantity
-                                    }
+                                <div>
 
-                                </small>
+                                    <h2>
+                                        Purchase Product
+                                    </h2>
 
-                            </div>
+                                    <p>
+                                        Enter quantity to purchase
+                                    </p>
 
+                                </div>
 
-                            {/* ACTIONS */}
-
-                            <div className="modal-actions">
 
                                 <button
-                                    type="button"
-                                    className="cancel-button"
+                                    className="close-modal"
                                     onClick={
                                         closeBuyModal
                                     }
                                 >
 
-                                    Cancel
-
-                                </button>
-
-
-                                <button
-                                    type="submit"
-                                    className="confirm-buy-button"
-                                >
-
-                                    <ShoppingCart
-                                        size={17}
+                                    <X
+                                        size={20}
                                     />
-
-                                    Buy Now
 
                                 </button>
 
                             </div>
 
-                        </form>
+
+                            {/* SELECTED USER */}
+
+                            <div className="selected-user">
+
+                                <div className="selected-user-avatar">
+
+                                    {selectedUser.user_name
+                                        ?.charAt(0)
+                                        ?.toUpperCase()}
+
+                                </div>
+
+
+                                <div className="selected-user-info">
+
+                                    <strong>
+
+                                        {
+                                            selectedUser.user_name
+                                        }
+
+                                    </strong>
+
+
+                                    <span>
+
+                                        User ID:
+                                        {" "}
+                                        {
+                                            selectedUser.user_id
+                                        }
+
+                                    </span>
+
+                                </div>
+
+
+                                <div className="available-quantity">
+
+                                    <span>
+                                        Available
+                                    </span>
+
+
+                                    <strong>
+
+                                        {Number(
+                                            selectedUser.quantity
+                                        ).toLocaleString()}
+
+                                    </strong>
+
+                                </div>
+
+                            </div>
+
+
+                            {/* FORM */}
+
+                            <form
+                                onSubmit={
+                                    handlePurchase
+                                }
+                                className="buy-form"
+                            >
+
+
+                                {/* QUANTITY */}
+
+                                <div className="form-group">
+
+                                    <label>
+
+                                        <ShoppingCart
+                                            size={16}
+                                        />
+
+                                        Quantity
+
+                                    </label>
+
+
+                                    <div className="quantity-control">
+
+                                        <button
+                                            type="button"
+                                            onClick={
+                                                decreaseQuantity
+                                            }
+                                            disabled={
+                                                buyQuantity <=
+                                                1
+                                            }
+                                        >
+
+                                            <Minus
+                                                size={16}
+                                            />
+
+                                        </button>
+
+
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            max={
+                                                selectedUser.quantity
+                                            }
+                                            value={
+                                                buyQuantity
+                                            }
+                                            onChange={(e) => {
+
+                                                const value =
+                                                    Number(
+                                                        e.target
+                                                            .value
+                                                    );
+
+
+                                                if (
+                                                    value >= 1 &&
+                                                    value <=
+                                                    Number(
+                                                        selectedUser.quantity
+                                                    )
+                                                ) {
+
+                                                    setBuyQuantity(
+                                                        value
+                                                    );
+
+                                                }
+
+                                            }}
+                                        />
+
+
+                                        <button
+                                            type="button"
+                                            onClick={
+                                                increaseQuantity
+                                            }
+                                            disabled={
+                                                buyQuantity >=
+                                                Number(
+                                                    selectedUser.quantity
+                                                )
+                                            }
+                                        >
+
+                                            <Plus
+                                                size={16}
+                                            />
+
+                                        </button>
+
+                                    </div>
+
+
+                                    <small>
+
+                                        Maximum available:
+                                        {" "}
+                                        {
+                                            selectedUser.quantity
+                                        }
+
+                                    </small>
+
+                                </div>
+
+
+                                {/* ACTIONS */}
+
+                                <div className="modal-actions">
+
+                                    <button
+                                        type="button"
+                                        className="cancel-button"
+                                        onClick={
+                                            closeBuyModal
+                                        }
+                                    >
+
+                                        Cancel
+
+                                    </button>
+
+
+                                    <button
+                                        type="submit"
+                                        className="confirm-buy-button"
+                                    >
+
+                                        <ShoppingCart
+                                            size={17}
+                                        />
+
+                                        Buy Now
+
+                                    </button>
+
+                                </div>
+
+                            </form>
+
+                        </div>
 
                     </div>
 
-                </div>
-
-            )}
+                )}
 
         </div>
 
@@ -855,7 +890,5 @@ function Balance() {
 
 }
 
+
 export default Balance;
-
-
-
