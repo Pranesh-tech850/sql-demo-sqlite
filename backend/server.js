@@ -1,1128 +1,821 @@
-import { useState } from "react";
+import express from "express";
+import cors from "cors";
+import sqlite3 from "sqlite3";
 
-import {
-    Wallet,
-    RefreshCw,
-    ShoppingCart,
-    X,
-    Package,
-    Minus,
-    Plus,
-    ArrowLeft
-} from "lucide-react";
+const app = express();
 
-import { Link } from "react-router-dom";
+const PORT = 5000;
+const sqlite = sqlite3.verbose();
 
-import "./Balance.css";
+// Middleware
+app.use(cors());
+app.use(express.json());
 
+// Connect to SQLite database
+const db = new sqlite.Database("./data/students.db", (err) => {
+    if (err) {
+        console.error("Database connection failed:", err.message);
+    } else {
+        console.log("Connected to SQLite database");
+    }
+});
 
-function Balance() {
+// Test route
+app.get("/", (req, res) => {
+    res.json({
+        message: "SQLite Backend is running"
+    });
+});
 
-    // =========================================
-    // API URL
-    // =========================================
+// Students
+app.get("/students", (req, res) => {
+    db.all("SELECT * FROM students", [], (err, rows) => {
+        if (err) {
+            return res.status(500).json({
+                error: err.message
+            });
+        }
 
-    const API_URL = import.meta.env.VITE_API_URL;
+        res.json(rows);
+    });
+});
 
+// ====To update students==============
+app.put("/students/:id", (req, res) => {
+    const { id } = req.params;
 
-    // =========================================
-    // STATES
-    // =========================================
+    const { name, email, age, course } = req.body;
 
-    const [balances, setBalances] = useState([]);
+    const sql = `
+        UPDATE students
+        SET name = ?, email = ?, age = ?, course = ?
+        WHERE id = ?
+    `;
 
-    const [loading, setLoading] = useState(false);
+    db.run(
+        sql,
+        [name, email, age, course, id],
+        function (err) {
 
-    const [error, setError] = useState("");
+            if (err) {
+                console.error(err);
 
-    const [showBuyModal, setShowBuyModal] = useState(false);
-
-    const [selectedUser, setSelectedUser] = useState(null);
-
-    const [buyQuantity, setBuyQuantity] = useState(1);
-
-
-    // =========================================
-    // FETCH BALANCES
-    // =========================================
-
-    const fetchBalances = async () => {
-
-        try {
-
-            setLoading(true);
-
-            setError("");
-
-
-            const response = await fetch(
-                `${API_URL}/balance`
-            );
-
-
-            // -------------------------------------
-            // READ RESPONSE AS TEXT FIRST
-            // -------------------------------------
-
-            const text = await response.text();
-
-            console.log(
-                "Balance response:",
-                text
-            );
-
-
-            let data;
-
-            try {
-
-                data = JSON.parse(text);
-
-            } catch (jsonError) {
-
-                console.error(
-                    "Balance API returned invalid JSON:",
-                    text
-                );
-
-                throw new Error(
-                    "Backend returned an invalid response"
-                );
-
+                return res.status(500).json({
+                    error: err.message
+                });
             }
 
-
-            if (!response.ok) {
-
-                throw new Error(
-                    data.error ||
-                    data.message ||
-                    "Failed to fetch balances"
-                );
-
+            if (this.changes === 0) {
+                return res.status(404).json({
+                    error: "Student not found"
+                });
             }
 
-
-            console.log(
-                "Balances received:",
-                data
-            );
-
-
-            setBalances(
-                Array.isArray(data)
-                    ? data
-                    : []
-            );
-
-
-        } catch (err) {
-
-            console.error(
-                "Fetch balance error:",
-                err
-            );
-
-
-            setError(
-                err.message ||
-                "Failed to fetch balances"
-            );
-
-
-            setBalances([]);
-
-
-        } finally {
-
-            setLoading(false);
-
-        }
-
-    };
-
-
-    // =========================================
-    // OPEN BUY MODAL
-    // =========================================
-
-    const handleBuy = (user) => {
-
-        console.log(
-            "Selected balance:",
-            user
-        );
-
-
-        setSelectedUser(user);
-
-        setBuyQuantity(1);
-
-        setShowBuyModal(true);
-
-    };
-
-
-    // =========================================
-    // CLOSE BUY MODAL
-    // =========================================
-
-    const closeBuyModal = () => {
-
-        setShowBuyModal(false);
-
-        setSelectedUser(null);
-
-        setBuyQuantity(1);
-
-    };
-
-
-    // =========================================
-    // DECREASE QUANTITY
-    // =========================================
-
-    const decreaseQuantity = () => {
-
-        setBuyQuantity((previous) => {
-
-            if (previous <= 1) {
-
-                return 1;
-
-            }
-
-            return previous - 1;
-
-        });
-
-    };
-
-
-    // =========================================
-    // INCREASE QUANTITY
-    // =========================================
-
-    const increaseQuantity = () => {
-
-        setBuyQuantity((previous) => {
-
-            if (
-                selectedUser &&
-                previous >=
-                Number(selectedUser.quantity)
-            ) {
-
-                return previous;
-
-            }
-
-            return previous + 1;
-
-        });
-
-    };
-
-
-    // =========================================
-    // BUY PURCHASE
-    // =========================================
-
-    const handlePurchase = async (e) => {
-
-        e.preventDefault();
-
-
-        // -------------------------------------
-        // CHECK SELECTED USER
-        // -------------------------------------
-
-        if (!selectedUser) {
-
-            alert(
-                "No balance selected"
-            );
-
-            return;
-
-        }
-
-
-        // -------------------------------------
-        // CHECK QUANTITY
-        // -------------------------------------
-
-        if (
-            !buyQuantity ||
-            !Number.isInteger(
-                Number(buyQuantity)
-            ) ||
-            Number(buyQuantity) <= 0
-        ) {
-
-            alert(
-                "Please enter a valid quantity"
-            );
-
-            return;
-
-        }
-
-
-        // -------------------------------------
-        // CHECK AVAILABLE QUANTITY
-        // -------------------------------------
-
-        if (
-            Number(buyQuantity) >
-            Number(selectedUser.quantity)
-        ) {
-
-            alert(
-                `Only ${selectedUser.quantity} quantity is available.`
-            );
-
-            return;
-
-        }
-
-
-        // -------------------------------------
-        // CHECK BALANCE ID
-        // -------------------------------------
-
-        if (
-            selectedUser.balance_id === undefined ||
-            selectedUser.balance_id === null
-        ) {
-
-            alert(
-                "Balance ID is missing"
-            );
-
-            console.error(
-                "Selected user does not contain balance_id:",
-                selectedUser
-            );
-
-            return;
-
-        }
-
-
-        try {
-
-            setLoading(true);
-
-
-            setError("");
-
-
-            // =====================================
-            // API REQUEST
-            // =====================================
-
-            const url =
-                `${API_URL}/balance/buy/${selectedUser.balance_id}`;
-
-
-            console.log(
-                "BUY URL:",
-                url
-            );
-
-
-            console.log(
-                "BUY BODY:",
-                {
-                    quantity: Number(buyQuantity)
+            // Get updated student
+            db.get(
+                "SELECT * FROM students WHERE id = ?",
+                [id],
+                (err, student) => {
+
+                    if (err) {
+                        return res.status(500).json({
+                            error: err.message
+                        });
+                    }
+
+                    res.json({
+                        message: "Student updated successfully",
+                        student: student
+                    });
                 }
             );
+        }
+    );
+});
 
 
-            const response = await fetch(
-                url,
-                {
-                    method: "POST",
+// Products
+// ===============================
+// GET ALL PRODUCTS
+// ===============================
 
-                    headers: {
-                        "Content-Type":
-                            "application/json"
-                    },
+app.get("/products", (req, res) => {
+    const sql = "SELECT * FROM products";
 
-                    body: JSON.stringify({
-                        quantity:
-                            Number(buyQuantity)
-                    })
-                }
-            );
-
-
-            // =====================================
-            // READ RESPONSE AS TEXT
-            // =====================================
-
-            const text =
-                await response.text();
-
-
-            console.log(
-                "BUY STATUS:",
-                response.status
-            );
-
-
-            console.log(
-                "BUY RAW RESPONSE:",
-                text
-            );
-
-
-            // =====================================
-            // PARSE JSON SAFELY
-            // =====================================
-
-            let data;
-
-
-            try {
-
-                data = JSON.parse(text);
-
-            } catch (jsonError) {
-
-                console.error(
-                    "Backend returned non-JSON response:",
-                    text
-                );
-
-
-                throw new Error(
-                    `Backend returned invalid response. Status: ${response.status}`
-                );
-
-            }
-
-
-            // =====================================
-            // HANDLE BACKEND ERROR
-            // =====================================
-
-            if (!response.ok) {
-
-                throw new Error(
-                    data.error ||
-                    data.message ||
-                    "Purchase failed"
-                );
-
-            }
-
-
-            // =====================================
-            // SUCCESS
-            // =====================================
-
-            console.log(
-                "Purchase response:",
-                data
-            );
-
-
-            alert(
-                data.message ||
-                `Purchase successful! Remaining quantity: ${data.remaining_quantity}`
-            );
-
-
-            // =====================================
-            // CLOSE MODAL
-            // =====================================
-
-            closeBuyModal();
-
-
-            // =====================================
-            // FETCH UPDATED BALANCE
-            // =====================================
-
-            await fetchBalances();
-
-
-        } catch (err) {
-
-            console.error(
-                "Purchase error:",
-                err
-            );
-
-
-            alert(
-                err.message ||
-                "Purchase failed"
-            );
-
-
-        } finally {
-
-            setLoading(false);
-
+    db.all(sql, [], (err, rows) => {
+        if (err) {
+            return res.status(500).json({
+                error: err.message
+            });
         }
 
-    };
+        res.json(rows);
+    });
+});
+
+
+// ===============================
+// SEARCH PRODUCT BY EXACT NAME
+// ===============================
+
+app.get("/products/search", (req, res) => {
+
+    const { name } = req.query;
+
+    if (!name) {
+        return res.status(400).json({
+            error: "Product name is required"
+        });
+    }
+
+    const sql = `
+        SELECT *
+        FROM products
+        WHERE product_name = ?
+    `;
+
+    db.get(sql, [name], (err, product) => {
+
+        if (err) {
+            return res.status(500).json({
+                error: err.message
+            });
+        }
+
+        if (!product) {
+            return res.status(404).json({
+                error: "Product not found"
+            });
+        }
+
+        res.json(product);
+    });
+});
+
+
+// ===============================
+// UPDATE PRODUCT
+// ===============================
+
+app.put("/products/:id", (req, res) => {
+
+    const { id } = req.params;
+
+    const {
+        product_name,
+        product_price
+    } = req.body;
+
+    if (!product_name || product_price === undefined) {
+        return res.status(400).json({
+            error: "Product name and price are required"
+        });
+    }
+
+    const sql = `
+        UPDATE products
+        SET product_name = ?,
+            product_price = ?
+        WHERE product_id = ?
+    `;
+
+    db.run(
+        sql,
+        [product_name, Number(product_price), id],
+        function (err) {
+
+            if (err) {
+                return res.status(500).json({
+                    error: err.message
+                });
+            }
+
+            if (this.changes === 0) {
+                return res.status(404).json({
+                    error: "Product not found"
+                });
+            }
+
+            // Get updated product
+            db.get(
+                "SELECT * FROM products WHERE product_id = ?",
+                [id],
+                (err, product) => {
+
+                    if (err) {
+                        return res.status(500).json({
+                            error: err.message
+                        });
+                    }
+
+                    res.json({
+                        message: "Product updated successfully",
+                        product: product
+                    });
+                }
+            );
+        }
+    );
+});
 
+// Balanceeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
+// ===============================
+// GET ALL BALANCE
+// ===============================
+
+app.get("/balance", (req, res) => {
+
+    db.all(
+        "SELECT * FROM balance",
+        [],
+        (err, rows) => {
 
-    // =========================================
-    // RETURN UI
-    // =========================================
+            if (err) {
+                console.error(
+                    "Balance fetch error:",
+                    err.message
+                );
 
-    return (
+                return res.status(500).json({
+                    error: err.message
+                });
+            }
 
-        <div className="balance-page">
+            console.log(
+                "Balance records:",
+                rows.length
+            );
 
+            res.json(rows);
+        }
+    );
+});
 
-            {/* =========================================
-                HEADER
-            ========================================= */}
 
-            <div className="balance-header">
+// ===============================
+// BUY PRODUCT
+// ===============================
 
-                <div>
+app.post("/balance/buy/:balanceId", (req, res) => {
 
-                    <div className="balance-title">
+    const { quantity } = req.body;
 
-                        <Link
-                            to="/"
-                            className="back-button"
-                        >
+    const balanceId = Number(req.params.balanceId);
 
-                            <ArrowLeft
-                                size={19}
-                            />
+
+    // ===============================
+    // VALIDATION
+    // ===============================
 
-                        </Link>
-
-
-                        <Wallet
-                            size={28}
-                        />
-
-
-                        <h1>
-                            Balance
-                        </h1>
-
-                    </div>
-
-
-                    <p>
-                        Manage user quantities
-                        and purchases
-                    </p>
-
-                </div>
-
-
-                <button
-                    className="fetch-button"
-                    onClick={fetchBalances}
-                    disabled={loading}
-                >
-
-                    <RefreshCw
-                        size={18}
-                        className={
-                            loading
-                                ? "spin"
-                                : ""
-                        }
-                    />
-
-
-                    {loading
-                        ? "Fetching..."
-                        : "Fetch Balance"}
-
-                </button>
-
-            </div>
-
-
-            {/* =========================================
-                ERROR MESSAGE
-            ========================================= */}
-
-            {error && (
-
-                <div className="error-message">
-
-                    {error}
-
-                </div>
-
-            )}
-
-
-            {/* =========================================
-                BALANCE CARD
-            ========================================= */}
-
-            <div className="balance-card">
-
-
-                {/* TABLE HEADER */}
-
-                <div className="table-header">
-
-                    <div>
-
-                        <h2>
-                            Users
-                        </h2>
-
-                        <p>
-                            Available user quantities
-                        </p>
-
-                    </div>
-
-
-                    <span>
-
-                        {
-                            balances.length.toLocaleString()
-                        }
-
-                        {" "}
-
-                        Records
-
-                    </span>
-
-                </div>
-
-
-                {/* =====================================
-                    LOADING
-                ===================================== */}
-
-                {loading ? (
-
-                    <div className="loading">
-
-                        <RefreshCw
-                            size={24}
-                            className="spin"
-                        />
-
-                        <span>
-                            Loading quantities...
-                        </span>
-
-                    </div>
-
-
-                ) : balances.length === 0 ? (
-
-                    <div className="empty">
-
-                        <Package
-                            size={40}
-                        />
-
-                        <h3>
-                            No records found
-                        </h3>
-
-                        <p>
-                            There are no balance
-                            records available.
-                        </p>
-
-                    </div>
-
-
-                ) : (
-
-                    /* =================================
-                       TABLE
-                    ================================= */
-
-                    <div className="table-container">
-
-                        <table>
-
-                            <thead>
-
-                                <tr>
-
-                                    <th>
-                                        Balance ID
-                                    </th>
-
-                                    <th>
-                                        User ID
-                                    </th>
-
-                                    <th>
-                                        User Name
-                                    </th>
-
-                                    <th>
-                                        Quantity
-                                    </th>
-
-                                    <th>
-                                        Action
-                                    </th>
-
-                                </tr>
-
-                            </thead>
-
-
-                            <tbody>
-
-                                {balances.map(
-                                    (user) => (
-
-                                        <tr
-                                            key={
-                                                user.balance_id
-                                            }
-                                        >
-
-                                            {/* BALANCE ID */}
-
-                                            <td>
-
-                                                <span className="id-badge">
-
-                                                    #
-
-                                                    {
-                                                        user.balance_id
-                                                    }
-
-                                                </span>
-
-                                            </td>
-
-
-                                            {/* USER ID */}
-
-                                            <td>
-
-                                                {
-                                                    user.user_id
-                                                }
-
-                                            </td>
-
-
-                                            {/* USER NAME */}
-
-                                            <td>
-
-                                                <div className="user-name">
-
-                                                    <div className="user-avatar">
-
-                                                        {
-                                                            user.user_name
-                                                                ?.charAt(0)
-                                                                ?.toUpperCase()
-                                                        }
-
-                                                    </div>
-
-
-                                                    <span>
-
-                                                        {
-                                                            user.user_name
-                                                        }
-
-                                                    </span>
-
-                                                </div>
-
-                                            </td>
-
-
-                                            {/* QUANTITY */}
-
-                                            <td>
-
-                                                <span className="quantity-badge">
-
-                                                    {
-                                                        Number(
-                                                            user.quantity
-                                                        ).toLocaleString()
-                                                    }
-
-                                                </span>
-
-                                            </td>
-
-
-                                            {/* BUY */}
-
-                                            <td>
-
-                                                <button
-                                                    className="buy-button"
-                                                    onClick={() =>
-                                                        handleBuy(
-                                                            user
-                                                        )
-                                                    }
-                                                    disabled={
-                                                        Number(
-                                                            user.quantity
-                                                        ) <= 0
-                                                    }
-                                                >
-
-                                                    <ShoppingCart
-                                                        size={16}
-                                                    />
-
-                                                    Buy
-
-                                                </button>
-
-                                            </td>
-
-                                        </tr>
-
-                                    )
-                                )}
-
-                            </tbody>
-
-                        </table>
-
-                    </div>
-
-                )}
-
-            </div>
-
-
-            {/* =========================================
-                BUY MODAL
-            ========================================= */}
-
-            {showBuyModal &&
-                selectedUser && (
-
-                    <div
-                        className="modal-overlay"
-                        onClick={closeBuyModal}
-                    >
-
-                        <div
-                            className="buy-modal"
-                            onClick={(e) =>
-                                e.stopPropagation()
+    if (
+        !Number.isInteger(balanceId) ||
+        balanceId <= 0
+    ) {
+        return res.status(400).json({
+            error: "Invalid balance ID"
+        });
+    }
+
+
+    if (
+        quantity === undefined ||
+        !Number.isInteger(Number(quantity)) ||
+        Number(quantity) <= 0
+    ) {
+        return res.status(400).json({
+            error: "Quantity must be a positive integer"
+        });
+    }
+
+
+    const buyQuantity = Number(quantity);
+
+
+    // ===============================
+    // START TRANSACTION
+    // ===============================
+
+    db.run(
+        "BEGIN IMMEDIATE TRANSACTION",
+        (err) => {
+
+            if (err) {
+
+                console.error(
+                    "Transaction start error:",
+                    err.message
+                );
+
+                return res.status(500).json({
+                    error: "Could not start transaction"
+                });
+            }
+
+
+            // ===============================
+            // GET BALANCE RECORD
+            // ===============================
+
+            db.get(
+                `
+                SELECT *
+                FROM balance
+                WHERE balance_id = ?
+                `,
+                [balanceId],
+                (err, balance) => {
+
+                    if (err) {
+
+                        return rollback(
+                            res,
+                            err.message
+                        );
+                    }
+
+
+                    // ===============================
+                    // BALANCE NOT FOUND
+                    // ===============================
+
+                    if (!balance) {
+
+                        return rollback(
+                            res,
+                            "Balance record not found",
+                            404
+                        );
+                    }
+
+
+                    // ===============================
+                    // CHECK QUANTITY
+                    // ===============================
+
+                    if (
+                        buyQuantity >
+                        Number(balance.quantity)
+                    ) {
+
+                        return rollback(
+                            res,
+                            `Insufficient quantity. Available: ${balance.quantity}`,
+                            400
+                        );
+                    }
+
+
+                    // ===============================
+                    // DEDUCT QUANTITY
+                    // ===============================
+
+                    db.run(
+                        `
+                        UPDATE balance
+                        SET quantity = quantity - ?
+                        WHERE balance_id = ?
+                        AND quantity >= ?
+                        `,
+                        [
+                            buyQuantity,
+                            balanceId,
+                            buyQuantity
+                        ],
+                        function (err) {
+
+                            if (err) {
+
+                                return rollback(
+                                    res,
+                                    err.message
+                                );
                             }
-                        >
 
 
-                            {/* =================================
-                                MODAL HEADER
-                            ================================= */}
+                            // ===============================
+                            // UPDATE FAILED
+                            // ===============================
 
-                            <div className="modal-header">
+                            if (this.changes === 0) {
 
-
-                                <div className="modal-icon">
-
-                                    <ShoppingCart
-                                        size={24}
-                                    />
-
-                                </div>
+                                return rollback(
+                                    res,
+                                    "Insufficient quantity",
+                                    400
+                                );
+                            }
 
 
-                                <div>
+                            // ===============================
+                            // GET REMAINING QUANTITY
+                            // ===============================
 
-                                    <h2>
-                                        Purchase Product
-                                    </h2>
+                            db.get(
+                                `
+                                SELECT quantity
+                                FROM balance
+                                WHERE balance_id = ?
+                                `,
+                                [balanceId],
+                                (err, updatedBalance) => {
 
-                                    <p>
-                                        Enter quantity to purchase
-                                    </p>
+                                    if (err) {
 
-                                </div>
-
-
-                                <button
-                                    className="close-modal"
-                                    onClick={
-                                        closeBuyModal
-                                    }
-                                >
-
-                                    <X
-                                        size={20}
-                                    />
-
-                                </button>
-
-                            </div>
-
-
-                            {/* =================================
-                                SELECTED USER
-                            ================================= */}
-
-                            <div className="selected-user">
-
-
-                                <div className="selected-user-avatar">
-
-                                    {
-                                        selectedUser.user_name
-                                            ?.charAt(0)
-                                            ?.toUpperCase()
+                                        return rollback(
+                                            res,
+                                            err.message
+                                        );
                                     }
 
-                                </div>
 
+                                    // ===============================
+                                    // QUANTITY = 0
+                                    // DELETE RECORD
+                                    // ===============================
 
-                                <div className="selected-user-info">
+                                    if (
+                                        Number(
+                                            updatedBalance.quantity
+                                        ) === 0
+                                    ) {
 
-                                    <strong>
+                                        db.run(
+                                            `
+                                            DELETE FROM balance
+                                            WHERE balance_id = ?
+                                            `,
+                                            [balanceId],
+                                            function (err) {
 
-                                        {
-                                            selectedUser.user_name
-                                        }
+                                                if (err) {
 
-                                    </strong>
-
-
-                                    <span>
-
-                                        User ID:
-                                        {" "}
-                                        {
-                                            selectedUser.user_id
-                                        }
-
-                                    </span>
-
-                                </div>
-
-
-                                <div className="available-quantity">
-
-                                    <span>
-                                        Available
-                                    </span>
-
-
-                                    <strong>
-
-                                        {
-                                            Number(
-                                                selectedUser.quantity
-                                            ).toLocaleString()
-                                        }
-
-                                    </strong>
-
-                                </div>
-
-                            </div>
-
-
-                            {/* =================================
-                                FORM
-                            ================================= */}
-
-                            <form
-                                onSubmit={
-                                    handlePurchase
-                                }
-                                className="buy-form"
-                            >
-
-
-                                {/* QUANTITY */}
-
-                                <div className="form-group">
-
-                                    <label>
-
-                                        <ShoppingCart
-                                            size={16}
-                                        />
-
-                                        Quantity
-
-                                    </label>
-
-
-                                    <div className="quantity-control">
-
-
-                                        {/* MINUS */}
-
-                                        <button
-                                            type="button"
-                                            onClick={
-                                                decreaseQuantity
-                                            }
-                                            disabled={
-                                                buyQuantity <= 1
-                                            }
-                                        >
-
-                                            <Minus
-                                                size={16}
-                                            />
-
-                                        </button>
-
-
-                                        {/* QUANTITY INPUT */}
-
-                                        <input
-                                            type="number"
-                                            min="1"
-                                            max={
-                                                Number(
-                                                    selectedUser.quantity
-                                                )
-                                            }
-                                            value={
-                                                buyQuantity
-                                            }
-                                            onChange={(e) => {
-
-                                                const value =
-                                                    Number(
-                                                        e.target
-                                                            .value
+                                                    return rollback(
+                                                        res,
+                                                        err.message
                                                     );
-
-
-                                                if (
-                                                    value >= 1 &&
-                                                    value <=
-                                                    Number(
-                                                        selectedUser.quantity
-                                                    )
-                                                ) {
-
-                                                    setBuyQuantity(
-                                                        value
-                                                    );
-
                                                 }
 
-                                            }}
-                                        />
+
+                                                // ===============================
+                                                // COMMIT
+                                                // ===============================
+
+                                                db.run(
+                                                    "COMMIT",
+                                                    (err) => {
+
+                                                        if (err) {
+
+                                                            return res.status(500).json({
+                                                                error:
+                                                                    err.message
+                                                            });
+                                                        }
 
 
-                                        {/* PLUS */}
+                                                        res.json({
+                                                            success: true,
 
-                                        <button
-                                            type="button"
-                                            onClick={
-                                                increaseQuantity
+                                                            message:
+                                                                "Purchase successful. Balance is now 0 and the record was deleted.",
+
+                                                            balance_id:
+                                                                balanceId,
+
+                                                            purchased_quantity:
+                                                                buyQuantity,
+
+                                                            remaining_quantity:
+                                                                0,
+
+                                                            sold_out:
+                                                                true
+                                                        });
+
+                                                    }
+                                                );
+
                                             }
-                                            disabled={
-                                                buyQuantity >=
-                                                Number(
-                                                    selectedUser.quantity
-                                                )
+                                        );
+
+                                    }
+
+
+                                    // ===============================
+                                    // QUANTITY STILL EXISTS
+                                    // ===============================
+
+                                    else {
+
+                                        db.run(
+                                            "COMMIT",
+                                            (err) => {
+
+                                                if (err) {
+
+                                                    return res.status(500).json({
+                                                        error:
+                                                            err.message
+                                                    });
+                                                }
+
+
+                                                res.json({
+                                                    success: true,
+
+                                                    message:
+                                                        "Purchase successful",
+
+                                                    balance_id:
+                                                        balanceId,
+
+                                                    purchased_quantity:
+                                                        buyQuantity,
+
+                                                    remaining_quantity:
+                                                        Number(
+                                                            updatedBalance.quantity
+                                                        ),
+
+                                                    sold_out:
+                                                        false
+                                                });
+
                                             }
-                                        >
+                                        );
 
-                                            <Plus
-                                                size={16}
-                                            />
+                                    }
 
-                                        </button>
+                                }
+                            );
 
-                                    </div>
+                        }
+                    );
 
+                }
+            );
 
-                                    <small>
-
-                                        Maximum available:
-                                        {" "}
-                                        {
-                                            Number(
-                                                selectedUser.quantity
-                                            ).toLocaleString()
-                                        }
-
-                                    </small>
-
-                                </div>
-
-
-                                {/* =================================
-                                    MODAL ACTIONS
-                                ================================= */}
-
-                                <div className="modal-actions">
-
-
-                                    {/* CANCEL */}
-
-                                    <button
-                                        type="button"
-                                        className="cancel-button"
-                                        onClick={
-                                            closeBuyModal
-                                        }
-                                    >
-
-                                        Cancel
-
-                                    </button>
-
-
-                                    {/* BUY */}
-
-                                    <button
-                                        type="submit"
-                                        className="confirm-buy-button"
-                                        disabled={loading}
-                                    >
-
-                                        <ShoppingCart
-                                            size={17}
-                                        />
-
-                                        {loading
-                                            ? "Processing..."
-                                            : "Buy Now"}
-
-                                    </button>
-
-                                </div>
-
-                            </form>
-
-                        </div>
-
-                    </div>
-
-                )}
-
-        </div>
-
+        }
     );
 
+});
+
+
+// ===============================
+// ROLLBACK FUNCTION
+// ===============================
+
+function rollback(
+    res,
+    message,
+    statusCode = 500
+) {
+
+    db.run(
+        "ROLLBACK",
+        () => {
+
+            res.status(statusCode).json({
+                error: message
+            });
+
+        }
+    );
 }
 
 
-export default Balance;
+app.get("/students/search", (req, res) => {
+    const { email } = req.query;
+
+    if (!email) {
+        return res.status(400).json({
+            error: "Email is required"
+        });
+    }
+
+    const sql = `
+        SELECT *
+        FROM students
+        WHERE email = ?
+    `;
+
+    db.get(sql, [email], (err, student) => {
+
+        if (err) {
+            return res.status(500).json({
+                error: err.message
+            });
+        }
+
+        if (!student) {
+            return res.status(404).json({
+                error: "Student not found"
+            });
+        }
+
+        res.json(student);
+    });
+});
+// Orders
+app.get("/orders", (req, res) => {
+    db.all("SELECT * FROM orders LIMIT 1000", [], (err, rows) => {
+        if (err) {
+            return res.status(500).json({
+                error: err.message
+            });
+        }
+
+        res.json(rows);
+    });
+});
+
+
+app.delete("/students/:id", (req, res) => {
+
+    const { id } = req.params;
+
+    db.run(
+        "DELETE FROM students WHERE id = ?",
+        [id],
+        function (err) {
+
+            if (err) {
+                console.error(
+                    "Delete student error:",
+                    err.message
+                );
+
+                return res.status(500).json({
+                    error: err.message
+                });
+            }
+
+            if (this.changes === 0) {
+                return res.status(404).json({
+                    error: "Student not found"
+                });
+            }
+
+            console.log(
+                `Student ${id} deleted successfully`
+            );
+
+            res.json({
+                success: true,
+                message: "Student deleted successfully",
+                deleted_id: id
+            });
+        }
+    );
+});
+app.get("/orders/search", (req, res) => {
+
+    const { order_id } = req.query;
+
+    if (!order_id) {
+        return res.status(400).json({
+            error: "Order ID is required"
+        });
+    }
+
+    const sql = `
+        SELECT *
+        FROM orders
+        WHERE order_id = ?
+    `;
+
+    db.get(sql, [order_id], (err, order) => {
+
+        if (err) {
+            return res.status(500).json({
+                error: err.message
+            });
+        }
+
+        if (!order) {
+            return res.status(404).json({
+                error: "Order not found"
+            });
+        }
+
+        res.json(order);
+    });
+
+});
+
+app.put("/orders/:id", (req, res) => {
+
+    const { id } = req.params;
+
+    const {
+        user_id,
+        product_id,
+        quantity,
+        order_date
+    } = req.body;
+
+    if (
+        user_id === undefined ||
+        product_id === undefined ||
+        quantity === undefined ||
+        !order_date
+    ) {
+        return res.status(400).json({
+            error: "All order fields are required"
+        });
+    }
+
+    const sql = `
+        UPDATE orders
+        SET
+            user_id = ?,
+            product_id = ?,
+            quantity = ?,
+            order_date = ?
+        WHERE order_id = ?
+    `;
+
+    db.run(
+        sql,
+        [
+            Number(user_id),
+            Number(product_id),
+            Number(quantity),
+            order_date,
+            id
+        ],
+        function (err) {
+
+            if (err) {
+                return res.status(500).json({
+                    error: err.message
+                });
+            }
+
+            if (this.changes === 0) {
+                return res.status(404).json({
+                    error: "Order not found"
+                });
+            }
+
+            db.get(
+                "SELECT * FROM orders WHERE order_id = ?",
+                [id],
+                (err, order) => {
+
+                    if (err) {
+                        return res.status(500).json({
+                            error: err.message
+                        });
+                    }
+
+                    res.json({
+                        message: "Order updated successfully",
+                        order: order
+                    });
+
+                }
+            );
+
+        }
+    );
+
+});
+
+
+app.delete("/orders/:id", (req, res) => {
+
+    const { id } = req.params;
+
+    const sql = `
+        DELETE FROM orders
+        WHERE order_id = ?
+    `;
+
+    db.run(sql, [id], function (err) {
+
+        if (err) {
+            return res.status(500).json({
+                error: err.message
+            });
+        }
+
+        if (this.changes === 0) {
+            return res.status(404).json({
+                error: "Order not found"
+            });
+        }
+
+        res.json({
+            message: "Order deleted successfully",
+            order_id: id
+        });
+
+    });
+
+});
+
+// Start server
+app.listen(PORT, () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+});
