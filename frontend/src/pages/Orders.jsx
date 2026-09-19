@@ -656,8 +656,13 @@ function Orders() {
                   </th>
 
                   <th>
+                    E-mail
+                    </th>
+                  <th>
                     Order Date
                   </th>
+
+
 
                   <th>
                     Actions
@@ -721,6 +726,12 @@ function Orders() {
                     <td className="order-quantity">
 
                       {order.quantity}
+
+                    </td>
+
+                       <td className="order-quantity">
+
+                      {order.email}
 
                     </td>
 
