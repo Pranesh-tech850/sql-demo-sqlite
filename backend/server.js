@@ -5,13 +5,14 @@ import sqlite3 from "sqlite3";
 const app = express();
 
 const PORT = 5000;
+const sqlite = sqlite3.verbose();
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 
 // Connect to SQLite database
-const db = new sqlite3.Database("./students.db", (err) => {
+const db = new sqlite.Database("./data/students.db", (err) => {
     if (err) {
         console.error("Database connection failed:", err.message);
     } else {
